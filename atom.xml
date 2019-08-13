@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>万平</title>
+  
+  
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="https://www.cainblog.cn/"/>
+  <updated>2019-08-13T13:27:23.036Z</updated>
+  <id>https://www.cainblog.cn/</id>
+  
+  <author>
+    <name>万平</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Java 基础篇 之 字符串 （一）</title>
+    <link href="https://www.cainblog.cn/java/%E5%9F%BA%E7%A1%80%E7%AF%87/java-string-1/"/>
+    <id>https://www.cainblog.cn/java/基础篇/java-string-1/</id>
+    <published>2019-08-13T13:27:23.036Z</published>
+    <updated>2019-08-13T13:27:23.036Z</updated>
+    
+    <content type="html"><![CDATA[<p>问题(01)：字符串的实现方式分mutable 和Imnutable 两种<br>问题(02)：字符串在JVM是如何存放的？<br>问题(03)：String类的不可变性体现在方面？有哪些优点？</p><h2 id="JVM存放位置"><a href="#JVM存放位置" class="headerlink" title="JVM存放位置"></a>JVM存放位置</h2><p>(1).使用常量字符串初始化的字符串对象，它的值存放在字符串常量池中；<br>(2).使用字符串构造方法创建的字符串对象，它的值存放在堆内存中；</p><h2 id="String-intern"><a href="#String-intern" class="headerlink" title="String.intern()"></a>String.intern()</h2><ol><li>这个API可以手动将一个字符串对象的值转移到字符串常量池中。</li><li>intern方法的实现底层是一个native方法，如果常量池中有这个字符串常量，就直接返回，否则将该字符串对象的值存入常量池，再返回。<br><font color="red" face="黑体">优点：</font>减少同名String对象在内存中的数量<br><font color="red" face="黑体">缺点：</font>String.intern()在做YGC时会扫描StringTable扫描，如果碰撞高会导致的YGC不断变长<a id="more"></a><h2 id="字符串常量池"><a href="#字符串常量池" class="headerlink" title="字符串常量池"></a>字符串常量池</h2>1、在1.7之前，字符串常量池是在PermGen区域，这个区域的大小是固定的-&gt;不能在运行时根据需要扩大，也不能被垃圾收集器回收，因此如果程序中有太多的字符串调用了intern方法的话，就可能造成OOM。<br>2、在1.7以后，字符串常量池移到了堆内存中，并且可以被垃圾收集器回收，这个改动降低了字符串常量池OOM的风险。</li></ol><h2 id="StringTable-数据结构"><a href="#StringTable-数据结构" class="headerlink" title="StringTable 数据结构"></a>StringTable 数据结构</h2><p>(1) StringTable是Hashtable数据结构。<br>(2) StringTable的bucket数量默认为60013 ，且每个bucket占用8个字节。</p><h2 id="StringTable-Rehash（碰撞100时rehash，摊平bucket）"><a href="#StringTable-Rehash（碰撞100时rehash，摊平bucket）" class="headerlink" title="StringTable Rehash（碰撞100时rehash，摊平bucket）"></a>StringTable Rehash（碰撞100时rehash，摊平bucket）</h2><p>1、JVM会根据hash碰撞的情况来决定是否做rehash，比如你从这个StringTable里查找某个字符串是否存在，如果对其对应的桶挨个遍历，超过了100个还是没有找到对应的同名的项，那就会设置一个flag，让下次进入到safepoint的时候做一次rehash动作。<br>2、rehash不会扩大bucket数量，而是在bucket不变的前提下，通过一个新的seed尝试摊平每个bucket中LinkedList的长度。</p><h2 id="StringTable-做清理"><a href="#StringTable-做清理" class="headerlink" title="StringTable 做清理"></a>StringTable 做清理</h2><p>YGC过程不会对StringTable做清理，这也就是Stringtable越来越大的原因，但是在Full GC或者CMS GC过程会对StringTable做清理。<br>验证很简单，执行下jmap -histo:live <pid></pid></p><h2 id="String-中-equals-已经被覆盖，先比较内存地址，再比较组成字符串-char-数组"><a href="#String-中-equals-已经被覆盖，先比较内存地址，再比较组成字符串-char-数组" class="headerlink" title="String 中 equals 已经被覆盖，先比较内存地址，再比较组成字符串 char 数组"></a>String 中 equals 已经被覆盖，先比较内存地址，再比较组成字符串 char 数组</h2><p>​<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object anObject)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">this</span> == anObject) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (anObject <span class="keyword">instanceof</span> String) &#123;</span><br><span class="line">        String anotherString = (String)anObject;</span><br><span class="line">        <span class="keyword">int</span> n = value.length;</span><br><span class="line">        <span class="keyword">if</span> (n == anotherString.value.length) &#123;</span><br><span class="line">            <span class="keyword">char</span> v1[] = value;</span><br><span class="line">            <span class="keyword">char</span> v2[] = anotherString.value;</span><br><span class="line">            <span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">while</span> (n-- != <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (v1[i] != v2[i])</span><br><span class="line">                    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">                i++;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">&#125;</span><br><span class="line">​</span><br></pre></td></tr></table></figure></p><h2 id="String-的不可变性？"><a href="#String-的不可变性？" class="headerlink" title="String 的不可变性？"></a>String 的不可变性？</h2><p>   1、String class 是final，不可被继承，方法不能被重载<br>   2、值是通过value[] 数组保存，为final类型，不可变，且没有setter方法</p><p>优点：<br>   1.字符串常量池的需要，可重复利用</p><ol start="2"><li>线程安全考虑</li><li>类加载器要用到字符串，不可变性提供了安全性，以便正确的类被加载</li><li>支持hash映射和缓存<br>​<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">String</span></span></span><br><span class="line"><span class="class">   <span class="keyword">implements</span> <span class="title">java</span>.<span class="title">io</span>.<span class="title">Serializable</span>, <span class="title">Comparable</span>&lt;<span class="title">String</span>&gt;, <span class="title">CharSequence</span></span>&#123;</span><br><span class="line">   <span class="comment">/** The value is used for character storage. */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">char</span> value[];</span><br><span class="line">   <span class="comment">/** The offset is the first index of the storage that is used. */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">int</span> offset;</span><br><span class="line">   <span class="comment">/** The count is the number of characters in the String. */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">int</span> count;</span><br><span class="line">   <span class="comment">/** Cache the hash code for the string */</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">int</span> hash; <span class="comment">// Default to </span></span><br><span class="line">​</span><br></pre></td></tr></table></figure></li></ol>]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;问题(01)：字符串的实现方式分mutable 和Imnutable 两种&lt;br&gt;问题(02)：字符串在JVM是如何存放的？&lt;br&gt;问题(03)：String类的不可变性体现在方面？有哪些优点？&lt;/p&gt;
+&lt;h2 id=&quot;JVM存放位置&quot;&gt;&lt;a href=&quot;#JVM存放位置&quot; class=&quot;headerlink&quot; title=&quot;JVM存放位置&quot;&gt;&lt;/a&gt;JVM存放位置&lt;/h2&gt;&lt;p&gt;(1).使用常量字符串初始化的字符串对象，它的值存放在字符串常量池中；&lt;br&gt;(2).使用字符串构造方法创建的字符串对象，它的值存放在堆内存中；&lt;/p&gt;
+&lt;h2 id=&quot;String-intern&quot;&gt;&lt;a href=&quot;#String-intern&quot; class=&quot;headerlink&quot; title=&quot;String.intern()&quot;&gt;&lt;/a&gt;String.intern()&lt;/h2&gt;&lt;ol&gt;
+&lt;li&gt;这个API可以手动将一个字符串对象的值转移到字符串常量池中。&lt;/li&gt;
+&lt;li&gt;intern方法的实现底层是一个native方法，如果常量池中有这个字符串常量，就直接返回，否则将该字符串对象的值存入常量池，再返回。&lt;br&gt;&lt;font color=&quot;red&quot; face=&quot;黑体&quot;&gt;优点：&lt;/font&gt;减少同名String对象在内存中的数量&lt;br&gt;&lt;font color=&quot;red&quot; face=&quot;黑体&quot;&gt;缺点：&lt;/font&gt;String.intern()在做YGC时会扫描StringTable扫描，如果碰撞高会导致的YGC不断变长
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.cainblog.cn/tags/Java/"/>
+    
+      <category term="String" scheme="https://www.cainblog.cn/tags/String/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>JVM 之 JIT （一）</title>
+    <link href="https://www.cainblog.cn/java/jvm/jvm-1/"/>
+    <id>https://www.cainblog.cn/java/jvm/jvm-1/</id>
+    <published>2019-08-13T13:10:35.130Z</published>
+    <updated>2019-08-13T13:10:35.130Z</updated>
+    
+    <content type="html"><![CDATA[<p>问题(01)：Java 对象都是在堆中创建的吗？</p><p>JVM 主要的执行技术<br>解释—&gt;即时编译—&gt;自适应优化—&gt;芯片级直接执行<br>|– 解释：属于第一代JVM；<br>由一套转译程式将每个Java指令都转译成对等十几或数十几个对等的微处理器指令，先后次序依序执行，这种模式执行的速度相当缓慢。<br>|– 即时编译：JIT属于第二代JVM；<br>类别是Java程式中的功能群组，JIT编译器在此时就会针对这个类别进行编译（compile）作业。经过编译后的程式，被优化成相当精简的原生型指令码（native code）<br>|– 自适应优化：（目前Sun的HotspotJVM采用这种技术）则吸取第一代JVM和第二代JVM的经验，采用两者结合的方式。开始对所有的代码都采取解释执行的方式，并监视代码执行情况，然后对那些经常调用的方法启动一个后台线程，将其编译为本地代码，并进行仔细优化。若方法不再频繁使用，则取消编译过的代码，仍对其进行解释执行；<br>|– 芯片级直接执行：内嵌在芯片上，用本地方法执行Java字节码。</p><a id="more"></a><p>JIT 即时编译（Just-in-time Compilation）<br>工作模式（Java -version 查看）<br>Client  模式 ：C1(编译器)、轻量级编译器，快速启动，占用内存少，启动快10%，GUI或客户端建议采用Client模式。<br>Server 模式：C2(编译器)、重量级编译器，编译器是自适应编译器，编译更完全，执行速度快。比Client模式快10倍，服务器采用Server模式。</p><p>分层编译<br>JVM从JDK1.6之后引入了分层编译、在JDK1.8默认开启、可以添加-server -XX:+TieredCompilation 参数进行开启关闭。<br>即时编译机制本身也需要占用用户内存和系统资源，针对那些编译一次就不会再使用的代码， 现代虚拟机提出了分层编译策略，类似于分代垃圾回收机制，一种根据不同时期场景调整编译级别的优化策略。<br>1、分层编译执行分为三层<br> 一层: 解释器执行、C1与C2编译器被禁用、不开启性能监控,、解释执行节约内存、效率低。<br> 二层: C1编译器运行、将字节码编译为本地码，进行简单可靠的优化，必要时可加入性能监控的逻辑。编译速度快，优化方式比较保守。<br> 三层: 混合编译 C1与C2同时使用，C2编译速度慢，优化方式比较激进、同样设定逃生门，在一些特殊情况下，激进优化后的代码并不能有更高的性能。需要进行优化回退，将重新对代码进行解释执行。<br>注：对于分层编译来说代码的编译优化级别是可以提升的，也可以使用 JVM 参数进行控制。<br>注：</p><p>2、编译对象与触发条件<br>在运行过程中会被即时编译器编译的热点代码有两类<br>1、被多次调用的方法<br>2、被多次执行的循环体（方法内的循环for）</p><p>3、探测热点代码的方式<br>|– 基于计数器的热点探测<br>使用精确的计数器进行精确计数，超过阈值触发编译，计算开销大。<br>|– 基于采样的热点探测<br>记录一段时间内方法调用次数超过阈值触发编译、并存在热度衰减，超过一定时间范围没有继续调用该方法则会将其值减半，不够严谨但适用大多数情况。<br>|– 循环体级别的热点探测<br>适用回边计数器来进行计数，PC寄存器向后跳转一次记为 一个回边，当每次跳转时，都会触发计数器加一，并将计数器的值与该循环体所在方法的频率计数器的值相加，其值超过阈值就会触发即时编译。</p><p>即时编译：一旦判定代码段是热点代码，则解释器将发送一次请求编译器，进行编译，在编译成功之前解释器仍旧运行着。 等编译完成后，直接将PC寄存器中方法的调用地址进行替换，替换为编译后的方法地址，这一过程就是栈上替换–OSR</p><p>编译优化<br>JAVAC只能进行一些静态优化、优化上存在一些局限性。而在JVM中即时编译过程中进行的优化，是一种动态编译优化。<br>即时编译器会进行很多优化，介绍几种比较经典的优化：<br>1、逃逸分析<br>逃逸分析，是一种可以有效减少Java 程序中同步负载和内存堆分配压力的跨函数全局数据流分析算法。通过逃逸分析，Java Hotspot编译器能够分析出一个新的对象的引用的使用范围从而决定是否要将这个对象分配到堆上。<br>总结：通过动态分析对象的作用域，为其它优化手段如栈上分配、标量替换和同步消除等提供依据。<br>发生逃逸行为有两种：<br>1、方法逃逸：当一个对象在方法中定义之后，作为参数传递到其它方法中；<br>2、线程逃逸：如类变量或实例变量，可能被其它线程访问到；<br>          如果对象不存在逃逸行为，则可以对该对象进行如下优化：同步消除、标量替换和栈上分配。<br>1、同步消除<br>如果对象是线程私有，那该对象的读写就不会存在竞争，则可以消除对该对象的同步锁。<br>优点： 减少加锁与解锁造成的资源开销。<br>通过-XX:+EliminateLocks 可以开启同步消除<br>2、标量替换<br>1、标量是指不可分割的量（基本数据类型和reference类型），相对的一个数据可以继续分解，称为聚合量；<br>2、如果把一个对象拆散，将其成员变量恢复到基本类型来访问就叫做标量替换；<br>3、如果逃逸分析发现一个对象不会被外部访问，并且该对象可以被拆散，那么经过优化之后，并不直接生成该对象，而是在栈上创建若干个成员变量；<br>优点：节省了空间，因为没有对象头以及对齐填充的空间浪费。<br>通过-XX:+EliminateAllocations可以开启标量替换， -XX:+PrintEliminateAllocations查看标量替换情况。<br>3、栈上分配<br>故名思议就是在栈上分配对象，其实目前Hotspot并没有实现真正意义上的栈上分配，实际上是标量替换。<br>优点：减少GC回收以及主存与工作内存需要的资源<br>4、矢量替代<br>逃逸分析方法如果发现对象的内存存储结构不需要连续进行的话，就可以将对象的部分甚至全部都保存在CPU寄存器内，这样能大大提高访问速度。</p><p>2、公共子表达式的消除<br>在一个表达式中有一部分表达式被计算过，并且在之后的代码中出现了同样的表达式并且表达式的值没有发生改变。那么编译器就会将这部分表达式用计算结果进行替换、以避免重复计算造成的时间开销。</p><p>3、方法内联<br>1、函数调用过程<br>调用函数实际是将程序执行顺序转移到调用函数所存放在内存中的地址，转出需要保存现场并记录执行地址，准入时需恢复现场并按保存地址继续执行，也就是压栈和出栈。对那些频繁调用而代码量又小的方法体，消耗的时间和空间会很大。<br>2、内联函数<br>在程序编译时，编译器将程序中出现的内联函数表达式用内联函数的函数体进行替换，以增加空间换时间的方式提升代码执行效率。<br>注：在Java中使用final关键字表示一个内联函数</p><p>C/C++这种静态编译的语言，实现方法内联是很简单的，但java作为动态编译语言，方法内联存在不确定性。<br>1、在编译时，将方法调用直接使用方法体中的代码进行替换，这就是方法内联，这样减少了方法调用过程中压栈与入栈的开销。同时为之后的一些优化手段提供条件。<br>2、对非虚方法进行内联是容易的，但对虚方法而言就比较复杂了，需要禁用 运行时类型继承分析机制来确定虚方法的实际调用者。 因为多态机制的存在，方法的调用者仅在运行时期才能知晓。并且会发生改变。 这就要求对虚方法的内联必须存在逃生门，可以在方法调用者，也就是继承关系发生变化时取消内联。</p>]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;问题(01)：Java 对象都是在堆中创建的吗？&lt;/p&gt;
+&lt;p&gt;JVM 主要的执行技术&lt;br&gt;解释—&amp;gt;即时编译—&amp;gt;自适应优化—&amp;gt;芯片级直接执行&lt;br&gt;|– 解释：属于第一代JVM；&lt;br&gt;由一套转译程式将每个Java指令都转译成对等十几或数十几个对等的微处理器指令，先后次序依序执行，这种模式执行的速度相当缓慢。&lt;br&gt;|– 即时编译：JIT属于第二代JVM；&lt;br&gt;类别是Java程式中的功能群组，JIT编译器在此时就会针对这个类别进行编译（compile）作业。经过编译后的程式，被优化成相当精简的原生型指令码（native code）&lt;br&gt;|– 自适应优化：（目前Sun的HotspotJVM采用这种技术）则吸取第一代JVM和第二代JVM的经验，采用两者结合的方式。开始对所有的代码都采取解释执行的方式，并监视代码执行情况，然后对那些经常调用的方法启动一个后台线程，将其编译为本地代码，并进行仔细优化。若方法不再频繁使用，则取消编译过的代码，仍对其进行解释执行；&lt;br&gt;|– 芯片级直接执行：内嵌在芯片上，用本地方法执行Java字节码。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="JIT" scheme="https://www.cainblog.cn/tags/JIT/"/>
+    
+      <category term="JVM" scheme="https://www.cainblog.cn/tags/JVM/"/>
+    
+  </entry>
+  
+</feed>
